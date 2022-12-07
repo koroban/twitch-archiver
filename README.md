@@ -13,6 +13,12 @@ A simple, fast, platform-independent Python script for downloading past and pres
 Primarily focused on data preservation, this script can be used to archive an entire Twitch channel at once, or to quickly grab the chat log from a single VOD. Both archived, and live VODs can be downloaded with this script.
 </p>
 
+
+
+## NOTICE: Chat archiving is currently not working as Twitch has changed the API - this should be fixed in the next few days but for now add the'-v' flag to only grab the video until an update is released.
+
+
+
 ## Table of Contents
 
   * [Features](#features)
