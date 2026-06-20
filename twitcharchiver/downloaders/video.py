@@ -368,51 +368,69 @@ class Video(Downloader):
         #   a better method would be to have 20 workers downloading, and 20 moving temp
         #   files from storage avoiding any downtime downloading
 
-        # create temporary file for downloading to
-        with open(
-            Path(
-                get_temp_dir(),
-                str(self.vod.v_id),
-                f"{segment.id}.ts",
-            ),
-            "wb",
-        ) as _tmp_ts_file:
-            for _ in range(6):
-                if _ > 4:
-                    raise VideoPartDownloadError(
-                        f"Maximum retries for segment {segment.id} reached."
-                    )
+        # try original url, falling back to unmuted url for muted segments
+        _urls = [segment.url]
+        if segment.muted:
+            _urls.append(segment.url.replace("-muted.ts", ".ts"))
 
-                try:
-                    _r = self._s.get(segment.url, stream=True, timeout=10)
+        for _url in _urls:
+            # create temporary file for downloading to
+            with open(
+                Path(
+                    get_temp_dir(),
+                    str(self.vod.v_id),
+                    f"{segment.id}.ts",
+                ),
+                "wb",
+            ) as _tmp_ts_file:
+                for _ in range(6):
+                    if _ > 4:
+                        break
 
-                    # break on non 200 status code
-                    if _r.status_code != 200:
-                        self._log.error(
-                            "HTTP status %s received. %s", _r.status_code, _r.text
+                    try:
+                        _r = self._s.get(_url, stream=True, timeout=10)
+
+                        # break on non 200 status code
+                        if _r.status_code != 200:
+                            self._log.error(
+                                "HTTP status %s received. %s", _r.status_code, _r.text
+                            )
+                            continue
+
+                        # write downloaded chunks to temporary file
+                        for _chunk in _r.iter_content(chunk_size=262144):
+                            _tmp_ts_file.write(_chunk)
+
+                        self._log.debug(
+                            "Segment %s download completed.", Path(_segment_path).stem
                         )
+                        self._completed_segments.add(segment)
+
+                        break
+
+                    except requests.exceptions.RequestException as exc:
+                        self._log.debug(
+                            "Segment %s download failed (Attempt %s). Error: %s)",
+                            Path(_segment_path).stem,
+                            _ + 1,
+                            str(exc),
+                        )
+                        sleep(0.1 * (_ + 1))
                         continue
 
-                    # write downloaded chunks to temporary file
-                    for _chunk in _r.iter_content(chunk_size=262144):
-                        _tmp_ts_file.write(_chunk)
+            if segment in self._completed_segments:
+                break
 
-                    self._log.debug(
-                        "Segment %s download completed.", Path(_segment_path).stem
-                    )
-                    self._completed_segments.add(segment)
-
-                    break
-
-                except requests.exceptions.RequestException as exc:
-                    self._log.debug(
-                        "Segment %s download failed (Attempt %s). Error: %s)",
-                        Path(_segment_path).stem,
-                        _ + 1,
-                        str(exc),
-                    )
-                    sleep(0.1 * (_ + 1))
-                    continue
+        if segment not in self._completed_segments:
+            if segment.muted:
+                self._log.warning(
+                    "Failed to download muted segment %s. Skipping.", segment.id
+                )
+                self._muted_segments.add(segment)
+                return
+            raise VideoPartDownloadError(
+                f"Maximum retries for segment {segment.id} reached."
+            )
 
         try:
             # move part to destination storage
