@@ -28,3 +28,65 @@ classifiers = [
 
 [project.scripts]
 twitch-archiver = "twitcharchiver.__init__:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-timeout>=2.3.0",
+    "ruff>=0.15.0",
+    "tox>=4.32.0",
+    "radon>=6.0.1",
+    "xenon>=0.9.3",
+    "vulture>=2.16",
+    "pyright>=1.1.400",
+    "bandit>=1.9.2",
+    "pre-commit>=4.5.0",
+]
+
+[tool.ruff]
+exclude = ["docs", "tests"]
+line-length = 160
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+preview = true
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+extend-select = [
+    "ANN",
+    "UP",
+    "UP042",
+    "I"
+]
+select = ["E9", "F82", "D"]
+ignore = ["D203", "D213", "D100", "F821"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+pythonpath = ["."]
+testpaths = [
+    "tests/unit",
+    "tests/integration",
+]
+
+[tool.pyright]
+exclude = ["**/__pycache__", "**/node_modules", "**/dist", "**/build", "**/venv", "**/.venv"]
+
+[tool.bandit]
+exclude_dirs = [".venv", "tests"]
+
+[tool.vulture]
+exclude = ["dist", "build", "venv", ".venv", "tests"]
+ignore_decorators = ["@app.route", "@require_*"]
+ignore_names = ["visit_*", "do_*"]
+min_confidence = 80
+paths = ["."]
+sort_by_size = true
