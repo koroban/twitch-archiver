@@ -25,5 +25,8 @@ classifiers = [
 "Homepage" = "https://github.com/Brisppy/twitch-archiver"
 "Bug Tracker" = "https://github.com/Brisppy/twitch-archiver/issues"
 
+[tool.setuptools]
+packages = ["twitcharchiver"]
+
 [project.scripts]
-twitch-archiver = "twitcharchiver.__init__:main"
+twitch-archiver = "twitcharchiver:main"
