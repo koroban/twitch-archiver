@@ -368,10 +368,10 @@ class Video(Downloader):
         #   a better method would be to have 20 workers downloading, and 20 moving temp
         #   files from storage avoiding any downtime downloading
 
-        # try original url, falling back to unmuted url for muted segments
+        # try original url, falling back to muted url for unmuted segments
         _urls = [segment.url]
-        if segment.muted:
-            _urls.append(segment.url.replace("-muted.ts", ".ts"))
+        if not segment.muted:
+            _urls.append(segment.url.replace(".ts", "-muted.ts"))
 
         for _url in _urls:
             # create temporary file for downloading to
