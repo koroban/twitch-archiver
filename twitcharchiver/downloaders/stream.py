@@ -177,7 +177,7 @@ class StreamSegment:
         def __eq__(self, other):
             if isinstance(other, StreamSegment.Part):
                 return self.url == other.url
-            raise TypeError
+            return NotImplemented
 
         def __hash__(self):
             return hash(self.url)
@@ -209,7 +209,7 @@ class StreamSegment:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.parts == other.parts
-        raise TypeError
+        return NotImplemented
 
     def __hash__(self):
         return hash(str(self.parts))
@@ -517,6 +517,15 @@ class Stream(Downloader):
                     raise NotImplementedError
 
                 announced_parts = m3u8.loads(_raw_playlist).segments
+
+                # transient empty playlist - retry rather than erroring out
+                if not announced_parts:
+                    self._log.debug(
+                        "Stream playlist contained no segments, retrying..."
+                    )
+                    sleep(5)
+                    continue
+
                 self._last_part_announce = (
                     announced_parts[-1]
                     .program_date_time.replace(tzinfo=timezone.utc)

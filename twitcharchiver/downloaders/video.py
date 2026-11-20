@@ -361,6 +361,9 @@ class Video(Downloader):
 
         # don't bother if piece already downloaded
         if os.path.exists(_segment_path):
+            # may have been downloaded by a parallel archiver after our
+            # completed segments snapshot - record it so it is merged
+            self._completed_segments.add(segment)
             return
 
         # files are downloaded to $TMP, then moved to final destination
@@ -487,7 +490,7 @@ class Video(Downloader):
             )
 
             # remove from completed segments
-            self._completed_segments.remove(segment)
+            self._completed_segments.discard(segment)
 
         # download and combine vod again
         try:
@@ -793,9 +796,9 @@ class Merger:
         ) as _p:
             # get progress from ffmpeg output and catch corrupt segments
             _ffmpeg_log = ""
+            _cur_time = 0
             for line in _p.stderr:
                 _ffmpeg_log += line.rstrip()
-                _cur_time = 0
 
                 if "time=" in line:
                     # extract current timestamp from output
@@ -819,12 +822,19 @@ class Merger:
                             re.search(r"(?<=dts = ).*(?=\).)", line).group(0)
                         )
 
-                    # Catch corrupt parts without timestamp, shows up as 'NOPTS'
-                    except ValueError as exc:
-                        raise VideoConvertError(
-                            "Corrupt packet encountered at unknown timestamp while converting VOD. "
-                            "Delete 'parts' folder and re-download VOD."
-                        ) from exc
+                    # Catch corrupt parts without timestamp, shows up as 'NOPTS'.
+                    # The part containing the corrupt packet can be estimated
+                    # from the current output position so a repair attempt can
+                    # be made instead of immediately failing.
+                    except ValueError:
+                        _corrupt_part = MpegSegment(floor(_cur_time / 10), 10)
+                        _corrupt_parts.add(_corrupt_part)
+                        self._log.error(
+                            "Corrupt packet encountered at unknown timestamp, "
+                            "estimating part %s from output position.",
+                            _corrupt_part,
+                        )
+                        continue
 
                     # The maximum value for the DTS timestamp is 2^33 - 1 (8589934591). This will get reached ~26 hours
                     # into a stream and cause corrupt part repair attempts to fail, so we need to use a different
