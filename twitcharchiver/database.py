@@ -67,7 +67,7 @@ class Database:
 
             if version == 4:
                 self.log.debug(
-                    "Performing incremental DB update. Version 3 -> Version 4."
+                    "Performing incremental DB update. Version 4 -> Version 5."
                 )
                 self.update_database(4)
 

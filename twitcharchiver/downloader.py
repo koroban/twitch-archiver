@@ -3,6 +3,7 @@ Classes related to Downloading methods and managing the downloading of a given V
 """
 
 import logging
+import os
 import traceback
 from pathlib import Path
 
@@ -136,9 +137,46 @@ class DownloadHandler:
         """
         try:
             self._lock_file = open(self._lock_fp, "x")
+            # store pid so stale locks left by crashed processes can be reaped
+            self._lock_file.write(str(os.getpid()))
+            self._lock_file.flush()
             return False
 
         except FileExistsError:
+            return self._lock_file_exists()
+
+    def _lock_file_exists(self):
+        """
+        Handle an already-existing lock file. Reaps the lock if the owning
+        process is no longer running.
+
+        :return: True if the VOD is locked by a live process
+        :rtype: bool
+        """
+        try:
+            _pid = int(self._lock_fp.read_text().strip())
+        except (OSError, ValueError):
+            # unreadable or legacy empty lock file - can't verify owner
+            self._log.debug("Lock file exists for VOD %s.", self.vod)
+            return True
+
+        if _pid == os.getpid():
+            # leftover lock created by this process
+            self._lock_fp.unlink(missing_ok=True)
+            return self.create_lock()
+
+        try:
+            os.kill(_pid, 0)
+            self._log.debug("Lock file exists for VOD %s.", self.vod)
+            return True
+
+        except ProcessLookupError:
+            # owning process is dead - reap stale lock and retry
+            self._lock_fp.unlink(missing_ok=True)
+            return self.create_lock()
+
+        except PermissionError:
+            # process exists but is owned by another user
             self._log.debug("Lock file exists for VOD %s.", self.vod)
             return True
 

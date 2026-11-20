@@ -667,7 +667,8 @@ class Stream(Downloader):
                         _r = requests.get(_part.url, stream=True, timeout=5)
 
                         if _r.status_code != 200:
-                            return
+                            _download_error = True
+                            break
 
                         # write part to file
                         for chunk in _r.iter_content(chunk_size=262144):

@@ -319,8 +319,10 @@ class Processing:
                 self.log.debug("Adding VOD to chat archive queue.")
                 _chat_download_queue.append(Chat(_vod, _vod_output_dir, self.quiet))
 
+        _failures = 0
         for _downloader in _video_download_queue:
-            self._start_download(_downloader)
+            if not self._start_download(_downloader):
+                _failures += 1
 
         if _chat_download_queue:
             _worker_pool = ThreadPoolExecutor(max_workers=self.threads)
@@ -336,11 +338,17 @@ class Processing:
                     )
 
                 for future in futures:
-                    if future.exception():
-                        self.log.debug(
-                            "Exception occurred in chat download pool: %s",
-                            future.exception(),
+                    _exc = future.exception()
+                    if _exc:
+                        # propagate user interrupts instead of counting as failure
+                        if isinstance(_exc, SystemExit):
+                            sys.exit(_exc.code)
+                        self.log.error(
+                            "Exception occurred in chat download pool: %s", _exc
                         )
+                        _failures += 1
+                    elif future.result() is False:
+                        _failures += 1
 
             except KeyboardInterrupt:
                 self.log.debug(
@@ -352,7 +360,17 @@ class Processing:
             finally:
                 _worker_pool.shutdown(wait=False, cancel_futures=True)
 
+        # exit non-zero after all queued downloads were attempted so
+        # schedulers/monitoring notice failures without starving the queue
+        if _failures:
+            self.log.error("%s download(s) failed.", _failures)
+            sys.exit(1)
+
     def _start_download(self, _downloader: Downloader):
+        """
+        Attempt to archive a single download. Returns False if an unhandled
+        error occurred so callers can continue processing the remaining queue.
+        """
         try:
             with DownloadHandler(_downloader.vod) as _dh:
                 if _downloader.vod.v_id:
@@ -369,10 +387,10 @@ class Processing:
                 _downloader.cleanup_temp_files()
 
         except VodAlreadyCompleted:
-            return
+            return True
 
         except VodLockedError:
-            return
+            return True
 
         except VideoFormatUnsupported:
             self.log.error(
@@ -386,6 +404,8 @@ class Processing:
                 Path(_downloader.output_dir).rmdir()
             except OSError:
                 pass
+
+            return False
 
         # catch user exiting and remove lock file
         except KeyboardInterrupt:
@@ -409,4 +429,6 @@ class Processing:
                     f" by {_downloader.vod.channel.name}.",
                     str(exc),
                 )
-            sys.exit(1)
+            return False
+
+        return True
