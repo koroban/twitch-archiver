@@ -1,6 +1,7 @@
 """
 Handles communication with the Twitch API.
 """
+
 import logging
 from time import sleep
 
@@ -9,9 +10,9 @@ import requests
 from twitcharchiver.exceptions import (
     RequestError,
     TwitchAPIError,
-    TwitchAPIErrorNotFound,
-    TwitchAPIErrorForbidden,
     TwitchAPIErrorBadRequest,
+    TwitchAPIErrorForbidden,
+    TwitchAPIErrorNotFound,
 )
 
 
@@ -24,7 +25,7 @@ class Api:
 
     def __new__(cls, *args, **kwargs):
         if cls.__instance is None:
-            cls.__instance = super(Api, cls).__new__(cls)
+            cls.__instance = super().__new__(cls)
             cls.__instance.__initialize()
 
         return cls.__instance
@@ -88,9 +89,7 @@ class Api:
         # request retry loop
         for _ in range(6):
             try:
-                _r = self._session.get(
-                    url, headers=_headers, params=_params, timeout=10
-                )
+                _r = self._session.get(url, headers=_headers, params=_params, timeout=10)
 
                 # unrecoverable exceptions
                 if _r.status_code == 400:
@@ -102,9 +101,7 @@ class Api:
                 if _r.status_code != 200:
                     # server errors are transient - retry them
                     if _r.status_code >= 500 and _ < 5:
-                        self.logging.error(
-                            "HTTP status %s received, retrying.", _r.status_code
-                        )
+                        self.logging.error("HTTP status %s received, retrying.", _r.status_code)
                         sleep(_ * 10)
                         continue
                     raise TwitchAPIError(_r)
@@ -117,9 +114,7 @@ class Api:
                     self.logging.error("Maximum attempts reached for request.")
                     raise RequestError(url, err) from err
 
-                self.logging.error(
-                    "Exception encountered during GET request, retrying. Error: %s", err
-                )
+                self.logging.error("Exception encountered during GET request, retrying. Error: %s", err)
                 sleep(_ * 10)
                 continue
 
@@ -138,28 +133,20 @@ class Api:
         :return: entire requests response
         """
         if (d is None) == (j is None):
-            raise ValueError(
-                "Exactly one of data (d) or json (j) must be included with request."
-            )
+            raise ValueError("Exactly one of data (d) or json (j) must be included with request.")
 
         # request retry loop
         for _ in range(6):
             try:
                 if j is None:
-                    _r = self._session.post(
-                        url, data=d, headers=h if h else self._headers, timeout=10
-                    )
+                    _r = self._session.post(url, data=d, headers=h if h else self._headers, timeout=10)
                 elif d is None:
-                    _r = self._session.post(
-                        url, json=j, headers=h if h else self._headers, timeout=10
-                    )
+                    _r = self._session.post(url, json=j, headers=h if h else self._headers, timeout=10)
 
                 if _r.status_code != 200:
                     # server errors are transient - retry them
                     if _r.status_code >= 500 and _ < 5:
-                        self.logging.error(
-                            "HTTP status %s received, retrying.", _r.status_code
-                        )
+                        self.logging.error("HTTP status %s received, retrying.", _r.status_code)
                         sleep(_ * 10)
                         continue
                     raise TwitchAPIError(_r)
@@ -204,9 +191,7 @@ class Api:
 
         _q = [
             {
-                "extensions": {
-                    "persistedQuery": {"sha256Hash": query_hash, "version": 1}
-                },
+                "extensions": {"persistedQuery": {"sha256Hash": query_hash, "version": 1}},
                 "operationName": operation,
                 "variables": variables,
             }

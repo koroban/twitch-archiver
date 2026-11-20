@@ -10,7 +10,6 @@ import re
 import shutil
 import sys
 import tempfile
-import uuid
 from datetime import datetime, timezone
 from itertools import groupby
 from math import ceil, floor
@@ -54,13 +53,9 @@ def build_output_dir_name(title: str, created_at: float, vod_id: int = 0):
         title = title.encode("utf-8")[:192].decode("utf-8", "ignore") + "..."
 
     if vod_id != 0:
-        _dir_name = " - ".join(
-            [format_timestamp(created_at), sanitize_text(title), str(vod_id)]
-        )
+        _dir_name = " - ".join([format_timestamp(created_at), sanitize_text(title), str(vod_id)])
     else:
-        _dir_name = " - ".join(
-            [format_timestamp(created_at), sanitize_text(title), "STREAM_ONLY"]
-        )
+        _dir_name = " - ".join([format_timestamp(created_at), sanitize_text(title), "STREAM_ONLY"])
     return _dir_name
 
 
@@ -96,9 +91,7 @@ def export_json(vod_json: dict):
 
     :param vod_json: dict of vod parameters retrieved from twitch
     """
-    with open(
-        Path(vod_json["store_directory"], "vod.json"), "w", encoding="utf8"
-    ) as json_out_file:
+    with open(Path(vod_json["store_directory"], "vod.json"), "w", encoding="utf8") as json_out_file:
         json_out_file.write(json.dumps(vod_json))
 
 
@@ -108,9 +101,7 @@ def import_json(vod_json: dict):
     :param vod_json: dict of vod parameters retrieved from twitch
     """
     if Path(vod_json["store_directory"], "vod.json").exists():
-        with open(
-            Path(vod_json["store_directory"], "vod.json"), "r", encoding="utf8"
-        ) as json_in_file:
+        with open(Path(vod_json["store_directory"], "vod.json"), encoding="utf8") as json_in_file:
             return json.loads(json_in_file.read())
 
     return []
@@ -174,7 +165,7 @@ def convert_to_seconds(duration):
     if len(duration) == 3:
         return (int(duration[0]) * 3600) + (int(duration[1]) * 60) + int(duration[2])
 
-    return int()
+    return 0
 
 
 def convert_to_hms(seconds):
@@ -232,27 +223,13 @@ def parse_twitch_timestamp(timestamp, strip_nanoseconds=False):
             timestamp = timestamp.replace(decimal, decimal[:6] + "Z")
 
         if strip_nanoseconds:
-            return (
-                datetime.strptime(
-                    timestamp.replace("." + decimal, ""), "%Y-%m-%dT%H:%M:%S"
-                )
-                .replace(tzinfo=timezone.utc)
-                .timestamp()
-            )
+            return datetime.strptime(timestamp.replace("." + decimal, ""), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
 
         else:
-            return (
-                datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
-                .replace(tzinfo=timezone.utc)
-                .timestamp()
-            )
+            return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc).timestamp()
 
     else:
-        return (
-            datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
-            .replace(tzinfo=timezone.utc)
-            .timestamp()
-        )
+        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
 
 
 def get_latest_version():
@@ -308,9 +285,7 @@ def check_update_available(local_version, remote_version):
         )
         # update is available if we are using a dev or release candidate build equal to or prior to
         # the latest stable release
-        if version_tuple(".".join(local_version_parts[:-1])) <= version_tuple(
-            remote_version
-        ):
+        if version_tuple(".".join(local_version_parts[:-1])) <= version_tuple(remote_version):
             return True
 
     elif version_tuple(local_version) < version_tuple(remote_version):
@@ -362,8 +337,7 @@ def send_push(pushbullet_key, title, body=""):
         if _r.status_code != 200:
             if _r.json()["error"]["code"] == "pushbullet_pro_required":
                 log.error(
-                    "Error sending push. Likely rate limited (500/month). "
-                    "Error %s: %s",
+                    "Error sending push. Likely rate limited (500/month). Error %s: %s",
                     _r.status_code,
                     _r.text,
                 )
@@ -383,7 +357,7 @@ def get_hash(file):
     :param file: path to file to hash
     :return: hash of provided file
     """
-    f_hash = hashlib.md5()
+    f_hash = hashlib.md5(usedforsecurity=False)
 
     with open(Path(file), "rb") as f:
         while True:
@@ -451,9 +425,7 @@ def getenv(name, default_val=None, is_bool=False):
         if val.upper() == "FALSE":
             return False
 
-        raise ValueError(
-            f"Invalid boolean value (true or false) received for environment variable: {name}={val}"
-        )
+        raise ValueError(f"Invalid boolean value (true or false) received for environment variable: {name}={val}")
 
     # default return
     return val
@@ -603,20 +575,12 @@ class Progress:
 
         last_frame = cur == total
         percent = floor(100 * (cur / total))
-        progress = floor((0.25 * percent)) * "#" + ceil(25 - (0.25 * percent)) * " "
+        progress = floor(0.25 * percent) * "#" + ceil(25 - (0.25 * percent)) * " "
         if cur == 0 or self.start_time == 0:
             remaining_time = "?"
 
         else:
-            remaining_time = self.to_hms(
-                ceil(
-                    (
-                        (int(datetime.now(timezone.utc).timestamp()) - self.start_time)
-                        / cur
-                    )
-                    * (total - cur)
-                )
-            )
+            remaining_time = self.to_hms(ceil(((int(datetime.now(timezone.utc).timestamp()) - self.start_time) / cur) * (total - cur)))
 
         if len(str(percent)) < 3:
             percent = " " * (3 - len(str(percent))) + str(percent)

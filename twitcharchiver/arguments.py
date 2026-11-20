@@ -5,7 +5,6 @@ Handles parsing and storage of arguments passed to twitch-archiver.
 import logging
 import re
 import sys
-
 from pathlib import Path
 
 
@@ -29,15 +28,11 @@ class Arguments:
 
         if cls.get("show_config"):
             try:
-                with open(
-                    Path(cls.get("config_dir"), "config.ini"), "r", encoding="utf8"
-                ) as config:
+                with open(Path(cls.get("config_dir"), "config.ini"), encoding="utf8") as config:
                     print(config.read())
                     sys.exit(0)
             except FileNotFoundError:
-                sys.exit(
-                    "Config file not found. Run Twitch-Archiver once to generate one."
-                )
+                sys.exit("Config file not found. Run Twitch-Archiver once to generate one.")
 
         # validate mutual exclusivity of arguments passed via CLI and environment variables
         # required as values set via environment variables bypass argparse mutex handling
@@ -46,8 +41,7 @@ class Arguments:
             # check if both mutex args have been set
             if mutex_arg_0 and mutex_arg_1:
                 raise ValueError(
-                    "Cannot accept both of the following mutually exclusive arguments: '"
-                    f"{mutex_args[0]}={mutex_arg_0}' and '{mutex_args[1]}={mutex_arg_1}'"
+                    f"Cannot accept both of the following mutually exclusive arguments: '{mutex_args[0]}={mutex_arg_0}' and '{mutex_args[1]}={mutex_arg_1}'"
                 )
 
         # get both video and chat logs if neither selected
@@ -148,7 +142,7 @@ class Arguments:
         :rtype: list[str]
         """
         try:
-            with open(Path(file_path), "r") as _fp:
+            with open(Path(file_path)) as _fp:
                 return [line.rstrip() for line in _fp]
 
         except Exception as exc:

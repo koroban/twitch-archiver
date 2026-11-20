@@ -11,7 +11,7 @@ import m3u8
 
 from twitcharchiver.api import Api
 from twitcharchiver.channel import Channel
-from twitcharchiver.exceptions import TwitchAPIErrorForbidden, TwitchAPIError
+from twitcharchiver.exceptions import TwitchAPIError, TwitchAPIErrorForbidden
 from twitcharchiver.twitch import Category, Chapters, MpegSegment
 from twitcharchiver.utils import parse_twitch_timestamp, time_since_date
 
@@ -102,22 +102,16 @@ class Vod:
             self.v_id = int(vod_info["id"])
         self.category = Category(vod_info["game"])
         self.duration = vod_info["lengthSeconds"]
-        self.published_at = parse_twitch_timestamp(
-            vod_info["publishedAt"], strip_nanoseconds=True
-        )
+        self.published_at = parse_twitch_timestamp(vod_info["publishedAt"], strip_nanoseconds=True)
         self.thumbnail_url = vod_info["previewThumbnailURL"]
         self.title = vod_info["title"]
         self.view_count = vod_info["viewCount"]
 
         # use published_at as created_at if not provided
         if "createdAt" in vod_info.keys():
-            self.created_at = parse_twitch_timestamp(
-                vod_info["createdAt"], strip_nanoseconds=True
-            )
+            self.created_at = parse_twitch_timestamp(vod_info["createdAt"], strip_nanoseconds=True)
         elif "publishedAt" in vod_info.keys():
-            self.created_at = self.created_at = parse_twitch_timestamp(
-                vod_info["publishedAt"], strip_nanoseconds=True
-            )
+            self.created_at = self.created_at = parse_twitch_timestamp(vod_info["publishedAt"], strip_nanoseconds=True)
 
         # set description if provided
         if "description" in vod_info.keys():
@@ -240,9 +234,7 @@ class Vod:
         if _stream_info["stream"]:
             try:
                 # if stream live and vod start time matches
-                _stream_created_time = parse_twitch_timestamp(
-                    _stream_info["stream"]["createdAt"], strip_nanoseconds=True
-                )
+                _stream_created_time = parse_twitch_timestamp(_stream_info["stream"]["createdAt"], strip_nanoseconds=True)
 
                 # if vod created within 10s of stream created time
                 if 10 >= self.created_at - _stream_created_time >= -10:
@@ -296,12 +288,7 @@ class Vod:
             )
 
             # extract and return list of moments from returned json
-            _chapters = Chapters(
-                [
-                    node["node"]
-                    for node in _r.json()[0]["data"]["video"]["moments"]["edges"]
-                ]
-            )
+            _chapters = Chapters([node["node"] for node in _r.json()[0]["data"]["video"]["moments"]["edges"]])
 
             if _chapters:
                 self._log.debug("Chapters for VOD %s: %s", self.v_id, _chapters)
@@ -312,9 +299,7 @@ class Vod:
             _category = self.get_category()
             _chapters = Chapters.create_chapter_from_category(_category, self.duration)
 
-            self._log.debug(
-                "Chapters generated for VOD based on %s: %s", _category, self.v_id
-            )
+            self._log.debug("Chapters generated for VOD based on %s: %s", _category, self.v_id)
 
         except TwitchAPIError as e:
             self._log.debug("Failed to retrieve chapters for VOD %s: %s", self.v_id, e)
@@ -340,10 +325,7 @@ class Vod:
         _segments = _r.json()[0]["data"]["video"]["muteInfo"]["mutedSegmentConnection"]
 
         if _segments:
-            _muted_segments = [
-                MpegSegment(s["offset"], s["duration"], muted=True)
-                for s in _segments["nodes"]
-            ]
+            _muted_segments = [MpegSegment(s["offset"], s["duration"], muted=True) for s in _segments["nodes"]]
             self._log.debug("Muted segments for VOD %s: %s", self.v_id, _muted_segments)
             return _muted_segments
 
@@ -490,9 +472,7 @@ class Vod:
         }
 
         try:
-            _r = self._api.get_request(
-                f"https://usher.ttvnw.net/vod/{self.v_id}.m3u8", p=_p
-            )
+            _r = self._api.get_request(f"https://usher.ttvnw.net/vod/{self.v_id}.m3u8", p=_p)
             _index = m3u8.loads(_r.text)
 
             _index_url = self.get_playlist_for_quality(_index.playlists, quality).uri
@@ -502,9 +482,7 @@ class Vod:
 
         # catch for sub-only VODs
         except TwitchAPIErrorForbidden:
-            self._log.debug(
-                "VOD %s is subscriber-only. Generating index URL.", self.v_id
-            )
+            self._log.debug("VOD %s is subscriber-only. Generating index URL.", self.v_id)
             # retrieve cloudfront storage location from VOD thumbnail
             if "404_processing" not in self.thumbnail_url:
                 _cf_info = self.thumbnail_url.split("/")
@@ -552,9 +530,7 @@ class Vod:
             self._log.debug("Token retrieved for VOD %s: %s", self.v_id, _token)
             return _token
 
-        self._log.debug(
-            "Token could not be retrieved for VOD %s: %s", self.v_id, _r.text
-        )
+        self._log.debug("Token could not be retrieved for VOD %s: %s", self.v_id, _r.text)
         return ""
 
     def get_index_playlist(self, index_url: str):
@@ -629,26 +605,18 @@ class Vod:
                 return available_qualities.index(desired_quality)
 
             except ValueError:
-                _log.error(
-                    "Exact user requested quality not found in available streams, grabbing closest match."
-                )
+                _log.error("Exact user requested quality not found in available streams, grabbing closest match.")
                 # grab first resolution match
                 try:
-                    return [quality[0] for quality in available_qualities].index(
-                        desired_quality[0]
-                    )
+                    return [quality[0] for quality in available_qualities].index(desired_quality[0])
 
                 except ValueError:
-                    _log.error(
-                        "No match found for user requested resolution. Defaulting to best."
-                    )
+                    _log.error("No match found for user requested resolution. Defaulting to best.")
                     return index_of_best
 
         if desired_quality == "worst":
             # retrieve index of worst quality
-            index_of_worst, _ = min(
-                enumerate(available_qualities), key=lambda x: sum(x[1])
-            )
+            index_of_worst, _ = min(enumerate(available_qualities), key=lambda x: sum(x[1]))
             return index_of_worst
 
         return index_of_best
@@ -670,9 +638,7 @@ class Vod:
         _stream.s_id = int(stream_json["stream"]["id"])
 
         _stream.category = Category(stream_json["stream"]["game"])
-        _stream.created_at = parse_twitch_timestamp(
-            stream_json["stream"]["createdAt"], strip_nanoseconds=True
-        )
+        _stream.created_at = parse_twitch_timestamp(stream_json["stream"]["createdAt"], strip_nanoseconds=True)
         _stream.duration = time_since_date(_stream.created_at)
         _stream.published_at = _stream.created_at
         _stream.title = stream_json["broadcastSettings"]["title"]
@@ -779,25 +745,15 @@ class ArchivedVod(Vod):
 
         # format date if using format prior to 4.0.0
         if "Z" in args[2]:
-            _archived_vod.created_at = (
-                datetime.strptime(args[2], "%Y-%m-%dT%H:%M:%SZ")
-                .replace(tzinfo=timezone.utc)
-                .timestamp()
-            )
+            _archived_vod.created_at = datetime.strptime(args[2], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
 
         else:
-            _archived_vod.created_at = (
-                datetime.strptime(args[2], "%Y-%m-%d %H:%M:%S")
-                .replace(tzinfo=timezone.utc)
-                .timestamp()
-            )
+            _archived_vod.created_at = datetime.strptime(args[2], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
 
         return _archived_vod
 
     @staticmethod
-    def convert_from_vod(
-        vod: Vod, chat_archived: bool = False, video_archived: bool = False
-    ):
+    def convert_from_vod(vod: Vod, chat_archived: bool = False, video_archived: bool = False):
         """
         Converts an existing VOD into an ArchivedVod.
 

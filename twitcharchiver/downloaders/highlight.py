@@ -2,13 +2,11 @@ import os
 import re
 from pathlib import Path
 
-from twitcharchiver.exceptions import VideoMergeError
-from twitcharchiver.vod import ArchivedVod
-from twitcharchiver.downloaders.video import Merger
 import m3u8
 
-from twitcharchiver.vod import Vod
-from twitcharchiver.downloaders.video import Video
+from twitcharchiver.downloaders.video import Merger, Video
+from twitcharchiver.exceptions import VideoMergeError
+from twitcharchiver.vod import ArchivedVod, Vod
 
 
 class Highlight(Video):
@@ -62,9 +60,7 @@ class Highlight(Video):
             merger.cleanup_temp_files()
 
         else:
-            raise VideoMergeError(
-                "VOD verification failed as Highlight length is outside the acceptable range."
-            )
+            raise VideoMergeError("VOD verification failed as Highlight length is outside the acceptable range.")
 
         # set archival flag if ArchivedVod provided
         if isinstance(self.vod, ArchivedVod):

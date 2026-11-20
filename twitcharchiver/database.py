@@ -12,7 +12,6 @@ __db_version__ = 5
 
 
 class Database:
-
     """
     Functions for interacting with the VOD database.
     """
@@ -51,24 +50,18 @@ class Database:
 
             # update version 2 schema to version 3
             if version == 2:
-                self.log.debug(
-                    "Performing incremental DB update. Version 2 -> Version 3."
-                )
+                self.log.debug("Performing incremental DB update. Version 2 -> Version 3.")
                 self.update_database(2)
                 version = 3
 
             # update version 3 schema to version 4
             if version == 3:
-                self.log.debug(
-                    "Performing incremental DB update. Version 3 -> Version 4."
-                )
+                self.log.debug("Performing incremental DB update. Version 3 -> Version 4.")
                 self.update_database(3)
                 version = 4
 
             if version == 4:
-                self.log.debug(
-                    "Performing incremental DB update. Version 4 -> Version 5."
-                )
+                self.log.debug("Performing incremental DB update. Version 4 -> Version 5.")
                 self.update_database(4)
 
     def update_database(self, version):

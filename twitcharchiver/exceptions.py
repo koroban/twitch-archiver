@@ -98,10 +98,7 @@ class StreamSegmentDownloadError(StreamDownloadError):
 
 class UnsupportedStreamPartDuration(StreamDownloadError):
     def __init__(self):
-        message = (
-            "Multiple parts with unsupported duration found which cannot be accurately combined. "
-            "Falling back to VOD archiver only."
-        )
+        message = "Multiple parts with unsupported duration found which cannot be accurately combined. Falling back to VOD archiver only."
 
         super().__init__(message)
 
@@ -152,10 +149,7 @@ class CorruptPartError(VideoConvertError):
         message = None
         self.parts = parts
         if parts:
-            message = (
-                f"Corrupt parts found when converting VOD file. Delete VOD and re-download if issue persists. "
-                f"Parts: {[p.id for p in parts]}"
-            )
+            message = f"Corrupt parts found when converting VOD file. Delete VOD and re-download if issue persists. Parts: {[p.id for p in parts]}"
 
         super().__init__(message)
 

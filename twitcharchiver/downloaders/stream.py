@@ -15,24 +15,24 @@ import requests
 
 from twitcharchiver.channel import Channel
 from twitcharchiver.downloader import Downloader
-from twitcharchiver.downloaders.video import MpegSegment, Merger
+from twitcharchiver.downloaders.video import Merger, MpegSegment
 from twitcharchiver.exceptions import (
-    TwitchAPIErrorNotFound,
-    UnsupportedStreamPartDuration,
-    StreamSegmentDownloadError,
     StreamFetchError,
     StreamOfflineError,
-    VideoMergeError,
+    StreamSegmentDownloadError,
     TwitchAPIError,
+    TwitchAPIErrorNotFound,
+    UnsupportedStreamPartDuration,
+    VideoMergeError,
 )
 from twitcharchiver.utils import (
-    time_since_date,
-    safe_move,
     build_output_dir_name,
-    write_json_file,
     get_temp_dir,
+    safe_move,
+    time_since_date,
+    write_json_file,
 )
-from twitcharchiver.vod import Vod, ArchivedVod
+from twitcharchiver.vod import ArchivedVod, Vod
 
 CHECK_INTERVAL = 4
 
@@ -42,9 +42,7 @@ class StreamSegmentList:
     Parses and stores segments of a Twitch livestream and the parts they are derived from.
     """
 
-    def __init__(
-        self, stream_created_at: float, align_segments: bool = True, start_id: int = 0
-    ):
+    def __init__(self, stream_created_at: float, align_segments: bool = True, start_id: int = 0):
         self.segments: dict[int:StreamSegment] = {}
         # used to track progress when not aligning segments
         self.current_id = start_id
@@ -159,20 +157,16 @@ class StreamSegment:
             Defines a part of a segment.
             """
             self.url: str = part.uri
-            self.timestamp: float = part.program_date_time.replace(
-                tzinfo=timezone.utc
-            ).timestamp()
+            self.timestamp: float = part.program_date_time.replace(tzinfo=timezone.utc).timestamp()
             self.duration: float = part.duration
             self.title = part.title
 
         def __repr__(self):
-            return str(
-                {
-                    "url": self.url,
-                    "timestamp": self.timestamp,
-                    "duration": self.duration,
-                }
-            )
+            return str({
+                "url": self.url,
+                "timestamp": self.timestamp,
+                "duration": self.duration,
+            })
 
         def __eq__(self, other):
             if isinstance(other, StreamSegment.Part):
@@ -274,9 +268,7 @@ class Stream(Downloader):
         self._do_setup()
 
     def __repr__(self):
-        return str(
-            {"channel": self.channel, "index_uri": self._index_uri, "stream": self.vod}
-        )
+        return str({"channel": self.channel, "index_uri": self._index_uri, "stream": self.vod})
 
     def export_metadata(self):
         write_json_file(self.vod.to_dict(), Path(self.output_dir, "vod.json"))
@@ -294,9 +286,7 @@ class Stream(Downloader):
             self.single_download_pass()
 
             try:
-                self.vod.chapters.stream_update_chapters(
-                    self.channel.get_stream_info()["stream"]["game"], self.vod.duration
-                )
+                self.vod.chapters.stream_update_chapters(self.channel.get_stream_info()["stream"]["game"], self.vod.duration)
 
             except TypeError:
                 pass
@@ -337,9 +327,7 @@ class Stream(Downloader):
             _stream_info = self.channel.get_stream_info()
 
             if _stream_info["stream"]["game"]:
-                self.vod.chapters.stream_update_chapters(
-                    _stream_info["stream"]["game"], self.vod.duration
-                )
+                self.vod.chapters.stream_update_chapters(_stream_info["stream"]["game"], self.vod.duration)
 
         except TypeError:
             # streams with no current category will raise this as ["stream"]["game"] is empty
@@ -435,10 +423,7 @@ class Stream(Downloader):
 
         if self.output_dir.exists():
             # get existing parts to resume counting if archiving halted
-            self._completed_segments = [
-                MpegSegment(int(Path(p).name.removesuffix(".ts")), 10)
-                for p in list(Path(self.output_dir, "parts").glob("*.ts"))
-            ]
+            self._completed_segments = [MpegSegment(int(Path(p).name.removesuffix(".ts")), 10) for p in list(Path(self.output_dir, "parts").glob("*.ts"))]
 
         self._init_download_queue()
 
@@ -462,9 +447,7 @@ class Stream(Downloader):
                     pass
 
             else:
-                self._log.debug(
-                    "Assuming stream has ended as 20 seconds passed since last segment announced."
-                )
+                self._log.debug("Assuming stream has ended as 20 seconds passed since last segment announced.")
                 self._get_final_segment()
 
                 # set archival flag if ArchivedVod provided
@@ -480,18 +463,14 @@ class Stream(Downloader):
     def _init_download_queue(self):
         # if parts exist in download directory, start from the next numbered part
         if self._completed_segments:
-            _latest_segment_id = (
-                max(self._completed_segments, key=attrgetter("id")).id + 1
-            )
+            _latest_segment_id = max(self._completed_segments, key=attrgetter("id")).id + 1
 
         # otherwise start from 0
         else:
             _latest_segment_id = 0
 
         # using the latest segment id, initialize the download queue starting from the current segment id.
-        self._download_queue = StreamSegmentList(
-            self.vod.created_at, self._align_segments, _latest_segment_id
-        )
+        self._download_queue = StreamSegmentList(self.vod.created_at, self._align_segments, _latest_segment_id)
 
     def _fetch_advertised_parts(self):
         """
@@ -520,17 +499,11 @@ class Stream(Downloader):
 
                 # transient empty playlist - retry rather than erroring out
                 if not announced_parts:
-                    self._log.debug(
-                        "Stream playlist contained no segments, retrying..."
-                    )
+                    self._log.debug("Stream playlist contained no segments, retrying...")
                     sleep(5)
                     continue
 
-                self._last_part_announce = (
-                    announced_parts[-1]
-                    .program_date_time.replace(tzinfo=timezone.utc)
-                    .timestamp()
-                )
+                self._last_part_announce = announced_parts[-1].program_date_time.replace(tzinfo=timezone.utc).timestamp()
 
                 for _part in [StreamSegment.Part(_p) for _p in announced_parts]:
                     # add new parts to part buffer
@@ -547,23 +520,17 @@ class Stream(Downloader):
             except TwitchAPIErrorNotFound:
                 # 404 received because stream ended
                 if self._processed_parts:
-                    self._log.info(
-                        "404 returned when fetching stream segments, assuming stream is offline."
-                    )
+                    self._log.info("404 returned when fetching stream segments, assuming stream is offline.")
                     return
 
                 # 404 received but stream may not have started
                 else:
-                    self._log.debug(
-                        "404 returned when fetching stream playlist, retrying..."
-                    )
+                    self._log.debug("404 returned when fetching stream playlist, retrying...")
                     sleep(5)
                     continue
 
             except TwitchAPIError:
-                self._log.debug(
-                    "Unhandled HTTP error received fetching stream playlist, retrying..."
-                )
+                self._log.debug("Unhandled HTTP error received fetching stream playlist, retrying...")
                 sleep(5)
                 continue
 
@@ -596,9 +563,7 @@ class Stream(Downloader):
             # an error if we encounter more than one if we are attempting to align the segments. we check for >2
             # instead of just 1 as the final part (or two) in the stream is often shorter than 2.0.
             if self._align_segments and _part.duration != 2.0:
-                self._log.debug(
-                    "Found part with unsupported duration (%s).", _part.duration
-                )
+                self._log.debug("Found part with unsupported duration (%s).", _part.duration)
                 self._unsupported_parts.add(_part)
 
             if len(self._unsupported_parts) > 2 and self._align_segments:
@@ -661,14 +626,10 @@ class Stream(Downloader):
         for _ in range(6):
             _download_error: bool = False
             if _ >= 5:
-                self._log.error(
-                    "Maximum attempts reached while downloading segment %s.", segment.id
-                )
+                self._log.error("Maximum attempts reached while downloading segment %s.", segment.id)
                 return
 
-            self._log.debug(
-                "Downloading segment %s to %s.", segment.id, _temp_buffer_file
-            )
+            self._log.debug("Downloading segment %s to %s.", segment.id, _temp_buffer_file)
             with open(_temp_buffer_file, "wb") as _tmp_file:
                 # iterate through each part of the segment, downloading them in order
                 for _part in segment.parts:
@@ -697,9 +658,7 @@ class Stream(Downloader):
                 try:
                     safe_move(
                         Path(_temp_buffer_file),
-                        Path(
-                            self.output_dir, "parts", str(f"{segment.id:05d}" + ".ts")
-                        ),
+                        Path(self.output_dir, "parts", str(f"{segment.id:05d}" + ".ts")),
                     )
                     self._completed_segments.append(segment)
                     self._log.debug("Stream segment: %s completed.", segment.id)
@@ -715,15 +674,9 @@ class Stream(Downloader):
         if self._download_queue:
             # check if the download queue contains a segment with a higher ID than the last
             # completed segment
-            if self._download_queue.is_segment_present(
-                max(self._completed_segments, key=attrgetter("id")).id + 1
-            ):
+            if self._download_queue.is_segment_present(max(self._completed_segments, key=attrgetter("id")).id + 1):
                 self._log.debug("Fetching final stream segment.")
-                self._download_segment(
-                    self._download_queue.get_segment_by_id(
-                        self._download_queue.current_id
-                    )
-                )
+                self._download_segment(self._download_queue.get_segment_by_id(self._download_queue.current_id))
 
     def cleanup_temp_files(self):
         """

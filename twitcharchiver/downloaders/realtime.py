@@ -10,9 +10,9 @@ from twitcharchiver.downloader import Downloader
 from twitcharchiver.downloaders.chat import Chat
 from twitcharchiver.downloaders.stream import Stream
 from twitcharchiver.downloaders.video import Video
-from twitcharchiver.logger import ProcessWithLogging, ProcessLogger
+from twitcharchiver.logger import ProcessLogger, ProcessWithLogging
 from twitcharchiver.utils import get_temp_dir
-from twitcharchiver.vod import Vod, ArchivedVod
+from twitcharchiver.vod import ArchivedVod, Vod
 
 
 class RealTime(Downloader):
@@ -72,9 +72,7 @@ class RealTime(Downloader):
 
         # create downloaders
         self.chat = Chat(self.vod, self.parent_dir, True)
-        self.stream = Stream(
-            self.vod.channel, self.vod, self.parent_dir, self.quality, True, True
-        )
+        self.stream = Stream(self.vod.channel, self.vod, self.parent_dir, self.quality, True, True)
         self.video = Video(self.vod, self.parent_dir, self.quality, self.threads, True)
 
         Path(logging_dir).mkdir(exist_ok=True, parents=True)
@@ -119,9 +117,7 @@ class RealTime(Downloader):
             for worker in workers:
                 if worker.is_alive():
                     worker.terminate()
-                    self._log.error(
-                        "Worker %s failed to exit and was terminated.", worker
-                    )
+                    self._log.error("Worker %s failed to exit and was terminated.", worker)
 
             self._handle_errors(workers)
 
@@ -155,19 +151,13 @@ class RealTime(Downloader):
         # handle various error cases. stream archiver failing is recoverable as long as video archiver finishes
         # successfully.
         if Video in errors:
-            self._log.error(
-                "Real-time archiver failed as video archiver exited with error. "
-                "See log for details."
-            )
+            self._log.error("Real-time archiver failed as video archiver exited with error. See log for details.")
         else:
             if isinstance(self.vod, ArchivedVod):
                 self.vod.video_archived = True
 
         if Chat in errors:
-            self._log.error(
-                "Real-time archiver failed as chat archiver exited with error. "
-                "See log for details."
-            )
+            self._log.error("Real-time archiver failed as chat archiver exited with error. See log for details.")
         else:
             if self.archive_chat and isinstance(self.vod, ArchivedVod):
                 self.vod.chat_archived = True

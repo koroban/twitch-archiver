@@ -4,6 +4,7 @@
 """
 Logging class used by Twitch Archiver.
 """
+
 import logging
 import logging.handlers
 import multiprocessing
@@ -11,9 +12,7 @@ import sys
 import traceback
 from pathlib import Path
 
-CONSOLE_FORMATTER = logging.Formatter(
-    "%(asctime)s [%(levelname)8s] %(message)s", "%Y-%m-%d %H:%M:%S"
-)
+CONSOLE_FORMATTER = logging.Formatter("%(asctime)s [%(levelname)8s] %(message)s", "%Y-%m-%d %H:%M:%S")
 FILE_FORMATTER = logging.Formatter(
     "%(asctime)s [%(filename)s:%(lineno)s - %(funcName)s()] %(message)s",
     "%Y-%m-%d %H:%M:%S",
@@ -65,9 +64,7 @@ class Logger:
         :return: logging object
         """
         if Path(logging_dir).is_file():
-            raise FileExistsError(
-                "Error configuring logging, file exists in place of log directory."
-            )
+            raise FileExistsError("Error configuring logging, file exists in place of log directory.")
 
         Path(logging_dir).mkdir(parents=True, exist_ok=True)
 
@@ -131,9 +128,7 @@ class ProcessLogger(multiprocessing.Process):
         # The global logging instance isn't properly shared with `spawn` and so it has to be re-added when we setup
         # multiprocess logging.
         # limit to 5x 100MB log files
-        h = logging.handlers.RotatingFileHandler(
-            "debug.log", "a", 100 * 1024**2, 5, encoding="utf8"
-        )
+        h = logging.handlers.RotatingFileHandler("debug.log", "a", 100 * 1024**2, 5, encoding="utf8")
         h.setFormatter(FILE_FORMATTER)
         root.addHandler(h)
 

@@ -8,8 +8,8 @@ import traceback
 from pathlib import Path
 
 from twitcharchiver.configuration import Configuration
-from twitcharchiver.database import Database, INSERT_VOD
-from twitcharchiver.exceptions import VodLockedError, VideoFormatUnsupported
+from twitcharchiver.database import INSERT_VOD, Database
+from twitcharchiver.exceptions import VideoFormatUnsupported, VodLockedError
 from twitcharchiver.utils import get_temp_dir
 from twitcharchiver.vod import ArchivedVod, Vod
 
@@ -211,12 +211,8 @@ class DownloadHandler:
             # if already present update it
             if downloaded_vod:
                 # set flags for updating
-                self.vod.chat_archived = (
-                    self.vod.chat_archived or downloaded_vod.chat_archived
-                )
-                self.vod.video_archived = (
-                    self.vod.video_archived or downloaded_vod.video_archived
-                )
+                self.vod.chat_archived = self.vod.chat_archived or downloaded_vod.chat_archived
+                self.vod.video_archived = self.vod.video_archived or downloaded_vod.video_archived
                 _db.execute_query(INSERT_VOD, self.vod.ordered_db_dict())
 
             else:

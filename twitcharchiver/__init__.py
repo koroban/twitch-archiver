@@ -43,15 +43,15 @@ from twitcharchiver.configuration import Configuration
 from twitcharchiver.logger import Logger
 from twitcharchiver.processing import Processing
 from twitcharchiver.utils import (
-    getenv,
     check_update_available,
     get_latest_version,
     get_temp_dir,
+    getenv,
 )
 
 __version__ = "4.4.8"
 
-from twitcharchiver.vod import Vod, ArchivedVod
+from twitcharchiver.vod import ArchivedVod, Vod
 
 
 def main():
@@ -78,11 +78,7 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     mode = parser.add_mutually_exclusive_group(
-        required=not (
-            ("--show-config" in sys.argv)
-            or ((getenv("TWITCH_ARCHIVER_CHANNEL")) is not None)
-            or (getenv("TWITCH_ARCHIVER_VOD") is not None)
-        )
+        required=not (("--show-config" in sys.argv) or ((getenv("TWITCH_ARCHIVER_CHANNEL")) is not None) or (getenv("TWITCH_ARCHIVER_VOD") is not None))
     )
     stream = parser.add_mutually_exclusive_group(required=False)
     loglevel = parser.add_mutually_exclusive_group(required=False)
@@ -107,8 +103,7 @@ def main():
         "-f",
         "--file",
         action="store_true",
-        help="Denotes that the value provided to `-c | --channel` or `-v | --vod` is a\n"
-        "path to a file. Each line should contain a VOD ID or channel name.",
+        help="Denotes that the value provided to `-c | --channel` or `-v | --vod` is a\npath to a file. Each line should contain a VOD ID or channel name.",
         default=False,
     )
     parser.add_argument(
@@ -147,8 +142,7 @@ def main():
         "-d",
         "--directory",
         action="store",
-        help="Directory to store archived VOD(s), use TWO slashes for Windows paths.\n"
-        "(default: current directory)",
+        help="Directory to store archived VOD(s), use TWO slashes for Windows paths.\n(default: current directory)",
         type=Path,
         default=getenv("TWITCH_ARCHIVER_DIRECTORY", Path(os.getcwd())),
     )
@@ -191,8 +185,7 @@ def main():
         "-R",
         "--real-time-archiver",
         action="store_true",
-        help="Enable real-time stream archiver.\n"
-        "Read https://github.com/Brisppy/twitch-archiver/wiki/Wiki#real-time-archiver.",
+        help="Enable real-time stream archiver.\nRead https://github.com/Brisppy/twitch-archiver/wiki/Wiki#real-time-archiver.",
         default=getenv("TWITCH_ARCHIVER_REAL_TIME_ARCHIVER", False, True),
     )
     parser.add_argument(
@@ -236,12 +229,8 @@ def main():
         type=str,
         default=getenv("TWITCH_ARCHIVER_OAUTH_TOKEN", ""),
     )
-    loglevel.add_argument(
-        "-Q", "--quiet", action="store_true", help="Disable all log output."
-    )
-    loglevel.add_argument(
-        "-D", "--debug", action="store_true", help="Enable debug logs."
-    )
+    loglevel.add_argument("-Q", "--quiet", action="store_true", help="Disable all log output.")
+    loglevel.add_argument("-D", "--debug", action="store_true", help="Enable debug logs.")
     parser.add_argument(
         "--unsorted",
         action="store_true",
@@ -286,8 +275,7 @@ def main():
     latest_version, release_notes = get_latest_version()
     if check_update_available(__version__, latest_version):
         log.warning(
-            "New version of Twitch-Archiver available - Version %s:\n"
-            "https://github.com/Brisppy/twitch-archiver/releases/latest\nRelease notes:\n\n%s\n",
+            "New version of Twitch-Archiver available - Version %s:\nhttps://github.com/Brisppy/twitch-archiver/releases/latest\nRelease notes:\n\n%s\n",
             latest_version,
             release_notes,
         )

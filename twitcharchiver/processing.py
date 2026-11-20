@@ -12,19 +12,19 @@ from pathlib import Path
 
 from twitcharchiver.channel import Channel
 from twitcharchiver.database import Database
-from twitcharchiver.downloader import DownloadHandler, Downloader
+from twitcharchiver.downloader import Downloader, DownloadHandler
 from twitcharchiver.downloaders.chat import Chat
 from twitcharchiver.downloaders.highlight import Highlight
 from twitcharchiver.downloaders.realtime import RealTime
 from twitcharchiver.downloaders.stream import Stream
 from twitcharchiver.downloaders.video import Video
 from twitcharchiver.exceptions import (
-    VodLockedError,
-    VodAlreadyCompleted,
     VideoFormatUnsupported,
+    VodAlreadyCompleted,
+    VodLockedError,
 )
-from twitcharchiver.utils import send_push, send_discord_notification
-from twitcharchiver.vod import Vod, ArchivedVod
+from twitcharchiver.utils import send_discord_notification, send_push
+from twitcharchiver.vod import ArchivedVod, Vod
 
 TEMP_BUFFER_LEN = 300
 
@@ -97,9 +97,7 @@ class Processing:
             channel_live = channel.is_live(force_refresh=True)
             if channel_live:
                 # fetch current stream info
-                stream: Stream = Stream(
-                    channel, Vod(), self.output_dir, self.quality, self.quiet, False
-                )
+                stream: Stream = Stream(channel, Vod(), self.output_dir, self.quality, self.quiet, False)
 
                 # check for debug force no archive flag
                 if self.force_no_archive:
@@ -110,12 +108,8 @@ class Processing:
                 # if stream length is less than TEMP_BUFFER_LEN, archive in stream-only mode for the time being
                 # while we wait for twitch's VOD api to update
                 if not stream.vod.v_id and stream.vod.duration < TEMP_BUFFER_LEN:
-                    self.log.info(
-                        "Stream began very recently, buffering initial segments until API updates."
-                    )
-                    with DownloadHandler(
-                        ArchivedVod.convert_from_vod(stream.vod)
-                    ) as _dh:
+                    self.log.info("Stream began very recently, buffering initial segments until API updates.")
+                    with DownloadHandler(ArchivedVod.convert_from_vod(stream.vod)) as _dh:
                         # we're not setting either the video_archived or chat_archived flags here because we may want
                         # to archive them from the VOD (if it becomes available). The stream info will be placed into
                         # the database once the buffer is saved
@@ -146,17 +140,13 @@ class Processing:
 
                     # no paired VOD exists, so we archive the stream before moving onto VODs
                     elif self.archive_video and not self.archive_only:
-                        self.log.debug(
-                            "Current stream has no paired VOD - beginning stream downloader."
-                        )
+                        self.log.debug("Current stream has no paired VOD - beginning stream downloader.")
                         stream.vod = ArchivedVod.convert_from_vod(stream.vod)
                         self._start_download(stream)
 
             # move on if channel offline and `live-only` set
             elif self.live_only:
-                self.log.info(
-                    "%s is offline and `live-only` argument provided.", channel.name
-                )
+                self.log.info("%s is offline and `live-only` argument provided.", channel.name)
                 continue
 
             self.log.debug(
@@ -170,8 +160,7 @@ class Processing:
                 downloaded_vods: list[ArchivedVod] = [
                     ArchivedVod.import_from_db(v)
                     for v in _db.execute_query(
-                        "SELECT vod_id,stream_id,created_at,chat_archived,video_archived FROM vods "
-                        "WHERE user_id IS ?",
+                        "SELECT vod_id,stream_id,created_at,chat_archived,video_archived FROM vods WHERE user_id IS ?",
                         {"user_id": channel.id},
                     )
                 ]
@@ -192,20 +181,11 @@ class Processing:
                 # if VOD already downloaded, add it to the queue if formats are missing
                 else:
                     # get downloaded VOD from list of downloaded VODs
-                    _downloaded_vod = downloaded_vods[
-                        [v.v_id for v in downloaded_vods].index(_vod.v_id)
-                    ]
+                    _downloaded_vod = downloaded_vods[[v.v_id for v in downloaded_vods].index(_vod.v_id)]
 
                     # check if any requested format is missing
-                    if (
-                        not _downloaded_vod.chat_archived
-                        and self.archive_chat
-                        or not _downloaded_vod.video_archived
-                        and self.archive_video
-                    ):
-                        self.log.debug(
-                            "VOD already archived but requested format(s) missing - adding them to download queue."
-                        )
+                    if not _downloaded_vod.chat_archived and self.archive_chat or not _downloaded_vod.video_archived and self.archive_video:
+                        self.log.debug("VOD already archived but requested format(s) missing - adding them to download queue.")
                         _channel_download_queue.append(
                             ArchivedVod.convert_from_vod(
                                 _vod,
@@ -254,9 +234,7 @@ class Processing:
             _vod_output_dir = Path(self._parent_dir, _vod.channel.name) if _vod.channel.name else self.output_dir
 
             if _vod.channel not in _channel_cache:
-                self.log.debug(
-                    "Channel '%s' missing from cache - adding now.", _vod.channel
-                )
+                self.log.debug("Channel '%s' missing from cache - adding now.", _vod.channel)
                 _channel_cache.append(_vod.channel)
 
             if self.live_only and not _vod.is_live():
@@ -265,17 +243,12 @@ class Processing:
 
             _channel_index = _channel_cache.index(_vod.channel)
             # if channel exists and is live
-            if (
-                _channel_cache[_channel_index]
-                and _channel_cache[_channel_index].is_live()
-            ):
+            if _channel_cache[_channel_index] and _channel_cache[_channel_index].is_live():
                 # check if current VOD ID matches associated broadcast VOD ID
                 if _channel_cache[_channel_index].get_broadcast_v_id() == _vod.v_id:
                     # skip if we aren't after currently live streams
                     if self.archive_only:
-                        self.log.info(
-                            "Skipping VOD as it is live and no-stream argument provided."
-                        )
+                        self.log.info("Skipping VOD as it is live and no-stream argument provided.")
                         continue
 
                     # run real-time archiver if enabled and current stream is being archived to this VOD
@@ -327,15 +300,11 @@ class Processing:
         if _chat_download_queue:
             _worker_pool = ThreadPoolExecutor(max_workers=self.threads)
             try:
-                self.log.debug(
-                    "Beginning bulk chat archival with %s threads.", self.threads
-                )
+                self.log.debug("Beginning bulk chat archival with %s threads.", self.threads)
                 # create threadpool for chat downloads
                 futures = []
                 for _downloader in _chat_download_queue:
-                    futures.append(
-                        _worker_pool.submit(self._start_download, _downloader)
-                    )
+                    futures.append(_worker_pool.submit(self._start_download, _downloader))
 
                 for future in futures:
                     _exc = future.exception()
@@ -343,17 +312,13 @@ class Processing:
                         # propagate user interrupts instead of counting as failure
                         if isinstance(_exc, SystemExit):
                             sys.exit(_exc.code)
-                        self.log.error(
-                            "Exception occurred in chat download pool: %s", _exc
-                        )
+                        self.log.error("Exception occurred in chat download pool: %s", _exc)
                         _failures += 1
                     elif future.result() is False:
                         _failures += 1
 
             except KeyboardInterrupt:
-                self.log.debug(
-                    "Chat downloader caught interrupt, shutting down workers..."
-                )
+                self.log.debug("Chat downloader caught interrupt, shutting down workers...")
                 _worker_pool.shutdown(wait=False, cancel_futures=True)
                 sys.exit(0)
 
@@ -374,13 +339,9 @@ class Processing:
         try:
             with DownloadHandler(_downloader.vod) as _dh:
                 if _downloader.vod.v_id:
-                    self.log.debug(
-                        "Beginning download of VOD %s.", _downloader.vod.v_id
-                    )
+                    self.log.debug("Beginning download of VOD %s.", _downloader.vod.v_id)
                 else:
-                    self.log.debug(
-                        "Beginning download of Stream %s.", _downloader.vod.s_id
-                    )
+                    self.log.debug("Beginning download of Stream %s.", _downloader.vod.s_id)
                 _downloader.start()
                 _downloader.export_metadata()
                 _downloader.merge()
@@ -418,15 +379,13 @@ class Processing:
             if self.discord_webhook:
                 send_discord_notification(
                     self.discord_webhook,
-                    f'Error downloading VOD "{_downloader.vod.v_id or _downloader.vod.s_id}"'
-                    f" by {_downloader.vod.channel.name}. {str(exc)}",
+                    f'Error downloading VOD "{_downloader.vod.v_id or _downloader.vod.s_id}" by {_downloader.vod.channel.name}. {str(exc)}',
                 )
 
             if self.pushbullet_key:
                 send_push(
                     self.pushbullet_key,
-                    f'Error downloading VOD "{_downloader.vod.v_id or _downloader.vod.s_id}"'
-                    f" by {_downloader.vod.channel.name}.",
+                    f'Error downloading VOD "{_downloader.vod.v_id or _downloader.vod.s_id}" by {_downloader.vod.channel.name}.',
                     str(exc),
                 )
             return False

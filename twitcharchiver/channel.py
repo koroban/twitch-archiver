@@ -35,7 +35,7 @@ class Channel:
         self.name: str = channel_name
         self.display_name = ""
         self.stream: dict = {}
-        self._broadcast_v_id = int()
+        self._broadcast_v_id = 0
 
         self._last_update: float = 0
 
@@ -206,16 +206,14 @@ class Channel:
             latest_vod = _r.json()[0]["data"]["user"]["videos"]["edges"][0]["node"]
             if latest_vod["status"] == "RECORDING":
                 self._broadcast_v_id = int(latest_vod["id"])
-                self._log.debug(
-                    "Broadcast VOD ID for %s: %s", self.name, self._broadcast_v_id
-                )
+                self._log.debug("Broadcast VOD ID for %s: %s", self.name, self._broadcast_v_id)
                 return self._broadcast_v_id
 
         except (KeyError, IndexError):
             pass
 
         self._log.debug("No data returned by ChannelVideoLength API for %s.", self.name)
-        return int()
+        return 0
 
     def get_stream_index(self, quality: str = "best"):
         """
@@ -241,9 +239,7 @@ class Channel:
             "supported_codecs": "avc1",
             "p": randrange(1000000, 9999999),
         }
-        _r = self._api.get_request(
-            f"https://usher.ttvnw.net/api/channel/hls/{self.name.lower()}.m3u8", p=_p
-        )
+        _r = self._api.get_request(f"https://usher.ttvnw.net/api/channel/hls/{self.name.lower()}.m3u8", p=_p)
 
         _index = m3u8.loads(_r.text)
 
@@ -286,9 +282,7 @@ class Channel:
             )
 
         except TwitchAPIError as exc:
-            self._log.error(
-                "Error retrieving stream playback token, check that the provided OAuth token is valid."
-            )
+            self._log.error("Error retrieving stream playback token, check that the provided OAuth token is valid.")
             raise exc
 
         _access_token = _r.json()[0]["data"]["streamPlaybackAccessToken"]
@@ -316,10 +310,7 @@ class Channel:
             },
         )
 
-        _recent_videos = [
-            Vod(vod_info=v["node"])
-            for v in _r.json()[0]["data"]["user"]["videos"]["edges"]
-        ]
+        _recent_videos = [Vod(vod_info=v["node"]) for v in _r.json()[0]["data"]["user"]["videos"]["edges"]]
 
         self._log.debug("Recent videos for %s: %s", self.name, _recent_videos)
         return _recent_videos
@@ -399,9 +390,7 @@ class Channel:
 
             # retrieve list of videos from response
             _videos_data = _r.json()[0]["data"]["user"]["videos"]
-            _channel_videos.extend(
-                Vod(vod_info=v["node"]) for v in _videos_data["edges"]
-            )
+            _channel_videos.extend(Vod(vod_info=v["node"]) for v in _videos_data["edges"])
 
             if _videos_data["pageInfo"]["hasNextPage"] and _videos_data["edges"]:
                 # set cursor

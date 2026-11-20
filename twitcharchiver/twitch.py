@@ -122,8 +122,7 @@ class Chapters:
         :return: Moments as iterable:
         :rtype: collections.Iterable[Moment]
         """
-        for _m in self._moments:
-            yield _m
+        yield from self._moments
 
     def insert_moment(self, moment):
         """
@@ -151,9 +150,7 @@ class Chapters:
 
         else:
             # update most recent moment duration
-            self._moments[-1].segment.duration = (
-                duration - self._moments[-1].segment.position
-            )
+            self._moments[-1].segment.duration = duration - self._moments[-1].segment.position
 
             # check if category changed
             if self._moments[-1].category.name != game_info["name"]:
@@ -201,7 +198,7 @@ class Chapters:
             :param moment: dict of values retrieved from Twitch
             """
 
-            self.id: int = int()
+            self.id: int = 0
             self.segment: Segment = Segment()
             self.type: str = ""
             self.description: str = ""
@@ -226,13 +223,11 @@ class Chapters:
             :return: str of Moment attributes.
             :rtype: str
             """
-            return str(
-                {
-                    "description": self.description,
-                    "type": self.type,
-                    "segment": self.segment,
-                }
-            )
+            return str({
+                "description": self.description,
+                "type": self.type,
+                "segment": self.segment,
+            })
 
         def __bool__(self):
             return bool(self.id)
@@ -271,7 +266,7 @@ class MpegSegment(Segment):
 
     def __init__(
         self,
-        segment_id: int() = 0,
+        segment_id: 0 = 0,
         duration: int = 0,
         url: str = "",
         muted: bool = False,
