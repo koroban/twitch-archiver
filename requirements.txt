@@ -1,3 +1,0 @@
-# Required packages
-requests>=2.25.1
-m3u8>=0.3.12
