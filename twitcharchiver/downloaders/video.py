@@ -963,14 +963,19 @@ class Merger:
                 "Failed to fetch downloaded VOD length. See log for details."
             ) from exc
 
+        # pass verification if downloaded file is within 2s or 0.1% of expected
+        # length, whichever is greater - metadata duration and actual segment
+        # durations can diverge slightly, especially on longer VODs
+        tolerance = max(2, int(self.vod.duration * 0.001))
+
         self._log.debug(
-            "Downloaded VOD length is %s. Expected length is %s.",
+            "Downloaded VOD length is %s. Expected length is %s. Tolerance is %ss.",
             downloaded_length,
             self.vod.duration,
+            tolerance,
         )
 
-        # pass verification if downloaded file is within 2s of expected length
-        if 2 >= downloaded_length - self.vod.duration >= -2:
+        if abs(downloaded_length - self.vod.duration) <= tolerance:
             return True
 
         return False

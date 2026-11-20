@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from twitcharchiver.downloaders.video import Video
+from twitcharchiver.downloaders.video import Merger, Video
 from twitcharchiver.exceptions import VideoPartDownloadError
 from twitcharchiver.twitch import MpegSegment
 from twitcharchiver.vod import Vod
@@ -118,3 +118,83 @@ class TestVideo(TestCase):
 
         with self.assertRaises(VideoPartDownloadError):
             self.video._get_ts_segment(normal_segment)
+
+
+class TestMerger(TestCase):
+    """
+    Class containing unit tests for the VOD Merger.
+    """
+
+    def setUp(self) -> None:
+        """
+        Setup a Merger instance with a mocked VOD and temporary output dir.
+        """
+        self.mock_vod = MagicMock(spec=Vod)
+        self.mock_vod.v_id = 12345
+        self.mock_vod.duration = 9351
+
+        self.output_dir = Path(tempfile.mkdtemp())
+        os.makedirs(Path(self.output_dir, "parts"), exist_ok=True)
+
+        self.merger = Merger(
+            self.mock_vod, self.output_dir, set(), set(), quiet=True
+        )
+
+    def tearDown(self) -> None:
+        import shutil
+        shutil.rmtree(self.output_dir, ignore_errors=True)
+
+    @staticmethod
+    def _mock_ffprobe(duration: str):
+        """
+        Return a mocked subprocess result mimicking an ffprobe duration query.
+        """
+        proc = MagicMock()
+        proc.returncode = 0
+        proc.stdout = duration
+        return proc
+
+    @patch("twitcharchiver.downloaders.video.subprocess.run")
+    def test_verify_length_within_scaled_tolerance(self, mock_run):
+        """
+        Test that a downloaded length within 0.1% of the expected duration
+        passes verification on a long VOD.
+        """
+        mock_run.return_value = self._mock_ffprobe("9345.497687")
+
+        self.assertTrue(self.merger.verify_length())
+
+    @patch("twitcharchiver.downloaders.video.subprocess.run")
+    def test_verify_length_floor_tolerance(self, mock_run):
+        """
+        Test that the 2s floor tolerance still applies to short VODs.
+        """
+        self.mock_vod.duration = 360
+        mock_run.return_value = self._mock_ffprobe("357")
+
+        self.assertFalse(self.merger.verify_length())
+
+    @patch("twitcharchiver.downloaders.video.subprocess.run")
+    def test_verify_length_truncated_vod_fails(self, mock_run):
+        """
+        Test that a clearly truncated download still fails verification.
+        """
+        mock_run.return_value = self._mock_ffprobe("5000")
+
+        self.assertFalse(self.merger.verify_length())
+
+    def test_verify_length_ignorelength_skips(self):
+        """
+        Test that a present .ignorelength file skips verification entirely.
+        """
+        Path(self.output_dir, ".ignorelength").touch()
+
+        self.assertTrue(self.merger.verify_length())
+
+    def test_verify_length_zero_duration_skips(self):
+        """
+        Test that a VOD with an expected length of 0 skips verification.
+        """
+        self.mock_vod.duration = 0
+
+        self.assertTrue(self.merger.verify_length())
