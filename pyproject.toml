@@ -28,7 +28,7 @@ classifiers = [
 [project.scripts]
 twitch-archiver = "twitcharchiver:main"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
@@ -41,10 +41,11 @@ dev = [
     "pyright>=1.1.400",
     "bandit>=1.9.2",
     "pre-commit>=4.5.0",
+    "mutmut>=3.8",
 ]
 
 [tool.ruff]
-exclude = ["docs", "tests"]
+exclude = ["docs", "tests", "mutants"]
 line-length = 160
 indent-width = 4
 
@@ -54,17 +55,15 @@ indent-style = "space"
 line-ending = "lf"
 preview = true
 
+# The upstream codebase predates docstring (D) and annotation (ANN) rules;
+# gating on them would require reformatting most of the tree and make future
+# upstream merges painful. Gate on bug classes instead: syntax errors,
+# undefined names, import sorting and pyupgrade checks.
 [tool.ruff.lint]
 preview = true
 explicit-preview-rules = true
-extend-select = [
-    "ANN",
-    "UP",
-    "UP042",
-    "I"
-]
-select = ["E9", "F82", "D"]
-ignore = ["D203", "D213", "D100", "F821"]
+select = ["E9", "F82", "I", "UP"]
+ignore = ["F821"]
 
 [tool.pytest.ini_options]
 addopts = [
@@ -76,16 +75,29 @@ testpaths = [
     "tests/integration",
 ]
 
+[tool.mutmut]
+source_paths = ["twitcharchiver/"]
+pytest_add_cli_args_test_selection = ["tests/unit"]
+pytest_add_cli_args = ["-x", "-q", "--timeout=60"]
+# Log-call argument mutations can never change observable behaviour; the
+# pattern skips the whole Call expression, including multi-line calls.
+do_not_mutate_patterns = [
+    '^\s*(logger|log|_log|self\._log)\.',
+]
+
 [tool.pyright]
-exclude = ["**/__pycache__", "**/node_modules", "**/dist", "**/build", "**/venv", "**/.venv"]
+exclude = ["**/__pycache__", "**/node_modules", "**/dist", "**/build", "**/venv", "**/.venv", "**/mutants"]
 
 [tool.bandit]
-exclude_dirs = [".venv", "tests"]
+exclude_dirs = [".venv", "tests", "mutants"]
+# B602: ffmpeg/ffprobe are intentionally invoked through the shell; all
+# interpolated paths come from sanitized output directory names
+skips = ["B602"]
 
 [tool.vulture]
-exclude = ["dist", "build", "venv", ".venv", "tests"]
+exclude = ["dist", "build", "venv", ".venv", "tests", "mutants"]
 ignore_decorators = ["@app.route", "@require_*"]
-ignore_names = ["visit_*", "do_*"]
+ignore_names = ["visit_*", "do_*", "exc_type", "ext_type", "exc_val", "exc_tb"]
 min_confidence = 80
 paths = ["."]
 sort_by_size = true

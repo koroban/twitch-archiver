@@ -1,53 +1,58 @@
 # Makefile
 
-.PHONY: all format check validate test test-cov test-integration test-all vulture complexity xenon bandit pyright fix reformat-ruff fix-ruff
+.PHONY: all format check validate test test-cov test-integration test-all vulture complexity xenon bandit pyright fix reformat-ruff fix-ruff mutation
 
 # Default target: runs format and check
 all: validate test
 
 # Format the code using ruff
 format:
-	ruff format --check --diff .
+	uv run ruff format --check --diff .
 
 reformat-ruff:
-	ruff format .
+	uv run ruff format .
 
 # Check the code using ruff
 check:
-	ruff check .
+	uv run ruff check .
 
 fix-ruff:
-	ruff check . --fix
+	uv run ruff check . --fix
 
 fix: reformat-ruff fix-ruff
 	@echo "Updated code."
 
 test:
-	pytest tests/unit
+	uv run pytest tests/unit
 
 test-cov:
-	pytest tests/unit --cov --cov-report=xml --cov-report=term-missing
+	uv run pytest tests/unit --cov --cov-report=xml --cov-report=term-missing
 
 test-integration:
-	pytest tests/integration -v --timeout=120
+	uv run pytest tests/integration -v --timeout=120
 
 test-all: test-cov
-	pytest tests/integration -v --timeout=120
+	uv run pytest tests/integration -v --timeout=120
+
+# Mutation testing (mutates twitcharchiver/, runs the unit suite per mutant)
+mutation:
+	uv run mutmut run
+	uv run mutmut results
 
 vulture:
-	vulture . --exclude .venv,tests --make-whitelist
+	uv run vulture . --exclude .venv,tests,mutants --make-whitelist
 
 complexity:
-	radon cc . -a -nc
+	uv run radon cc . -a -nc
 
 xenon:
-	xenon -b D -m B -a B .
+	uv run xenon -b D -m B -a B .
 
 bandit:
-	bandit -c pyproject.toml -r .
+	uv run bandit -c pyproject.toml -r .
 
 pyright:
-	pyright
+	uv run pyright
 
 # Validate the code (format + check + quality)
 validate: format check complexity bandit pyright vulture

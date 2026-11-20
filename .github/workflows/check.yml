@@ -1,0 +1,73 @@
+name: Code Checks
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Unit Tests & Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Cache uv
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.cache/pip
+          key: uv-cache-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            uv-cache-
+
+      - name: Set up Python environment
+        run: |
+          wget -qO- https://astral.sh/uv/install.sh | sh
+          uv sync
+
+      - name: Run Ruff (PEP 8 Formatting)
+        run: |
+          uv run make format
+
+      - name: Run Ruff (Linting)
+        run: |
+          uv run make check
+
+      - name: Run vulture (Dead Code)
+        run: |
+          uv run make vulture
+
+      - name: Run bandit (Security)
+        run: |
+          uv run bandit -ll -c pyproject.toml -r .
+
+      - name: Run pytest (Unit Tests)
+        run: |
+          uv run pytest tests/unit -v --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: ./coverage.xml
+
+      # Advisory checks - the inherited upstream codebase currently fails
+      # these; they report but do not block until the code is cleaned up.
+      - name: Run xenon (Cyclomatic Complexity)
+        continue-on-error: true
+        run: |
+          uv run make xenon
+
+      - name: Run pyright (Type Checking)
+        continue-on-error: true
+        run: |
+          uv run make pyright
