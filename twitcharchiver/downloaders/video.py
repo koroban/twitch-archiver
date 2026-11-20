@@ -371,7 +371,8 @@ class Video(Downloader):
         # try original url, falling back to muted url for unmuted segments
         _urls = [segment.url]
         if not segment.muted:
-            _urls.append(segment.url.replace(".ts", "-muted.ts"))
+            _head, _sep, _tail = segment.url.rpartition(".ts")
+            _urls.append(_head + "-muted.ts" + _tail if _sep else segment.url)
 
         for _url in _urls:
             # create temporary file for downloading to
@@ -386,6 +387,10 @@ class Video(Downloader):
                 for _ in range(6):
                     if _ > 4:
                         break
+
+                    # discard any partial data left by a failed attempt
+                    _tmp_ts_file.seek(0)
+                    _tmp_ts_file.truncate()
 
                     try:
                         _r = self._s.get(_url, stream=True, timeout=10)
@@ -405,6 +410,11 @@ class Video(Downloader):
                             "Segment %s download completed.", Path(_segment_path).stem
                         )
                         self._completed_segments.add(segment)
+
+                        # mark segment as muted if the muted fallback url was used
+                        if _url != segment.url:
+                            segment.muted = True
+                            self._muted_segments.add(segment)
 
                         break
 

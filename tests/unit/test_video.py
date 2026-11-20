@@ -4,6 +4,8 @@ from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from twitcharchiver.downloaders.video import Merger, Video
 from twitcharchiver.exceptions import VideoPartDownloadError
 from twitcharchiver.twitch import MpegSegment
@@ -68,9 +70,11 @@ class TestVideo(TestCase):
         self.video._s.get.assert_any_call("https://example.com/42.ts", stream=True, timeout=10)
         self.video._s.get.assert_any_call("https://example.com/42-muted.ts", stream=True, timeout=10)
 
-        # segment should be marked as completed
+        # segment should be marked as completed and muted, as it contains
+        # muted content fetched via the fallback url
         self.assertIn(unmuted_segment, self.video._completed_segments)
-        self.assertNotIn(unmuted_segment, self.video._muted_segments)
+        self.assertIn(unmuted_segment, self.video._muted_segments)
+        self.assertTrue(unmuted_segment.muted)
 
     @patch("twitcharchiver.downloaders.video.safe_move")
     def test_muted_segment_skipped_on_failure(self, mock_safe_move):
@@ -118,6 +122,71 @@ class TestVideo(TestCase):
 
         with self.assertRaises(VideoPartDownloadError):
             self.video._get_ts_segment(normal_segment)
+
+
+    @patch("twitcharchiver.downloaders.video.safe_move")
+    @patch("twitcharchiver.downloaders.video.sleep")
+    def test_muted_fallback_marks_segment_muted(self, mock_sleep, mock_safe_move):
+        """
+        Test that a segment downloaded via the muted fallback URL is flagged as muted.
+        """
+        unmuted_segment = MpegSegment(
+            segment_id=42,
+            duration=10,
+            url="https://example.com/42.ts",
+            muted=False,
+        )
+
+        mock_response_404 = MagicMock()
+        mock_response_404.status_code = 404
+        mock_response_404.text = "Not Found"
+
+        mock_response_200 = MagicMock()
+        mock_response_200.status_code = 200
+        mock_response_200.iter_content.return_value = [b"fake_ts_data"]
+
+        # original url fails all attempts, muted fallback succeeds
+        self.video._s.get.side_effect = [mock_response_404] * 5 + [mock_response_200]
+
+        self.video._get_ts_segment(unmuted_segment)
+
+        self.assertIn(unmuted_segment, self.video._completed_segments)
+        self.assertIn(unmuted_segment, self.video._muted_segments)
+        self.assertTrue(unmuted_segment.muted)
+
+    @patch("twitcharchiver.downloaders.video.safe_move")
+    @patch("twitcharchiver.downloaders.video.sleep")
+    def test_midstream_failure_does_not_corrupt_tmp_file(self, mock_sleep, mock_safe_move):
+        """
+        Test that a failed attempt mid-stream does not leave partial data which
+        corrupts the file written by the next attempt.
+        """
+        segment = MpegSegment(
+            segment_id=42,
+            duration=10,
+            url="https://example.com/42.ts",
+            muted=True,
+        )
+
+        def failed_stream(**kwargs):
+            yield b"partial_chunk"
+            raise requests.exceptions.ConnectionError("conn dropped")
+
+        mock_failed = MagicMock()
+        mock_failed.status_code = 200
+        mock_failed.iter_content.side_effect = failed_stream
+
+        mock_ok = MagicMock()
+        mock_ok.status_code = 200
+        mock_ok.iter_content.return_value = [b"full_segment"]
+
+        self.video._s.get.side_effect = [mock_failed, mock_ok]
+
+        self.video._get_ts_segment(segment)
+
+        # tmp file must contain only the successful attempt's data
+        tmp_file = Path(self._temp_dir, str(self.mock_vod.v_id), "42.ts")
+        self.assertEqual(tmp_file.read_bytes(), b"full_segment")
 
 
 class TestMerger(TestCase):
