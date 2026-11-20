@@ -34,6 +34,12 @@ class Api:
         Class constructor.
         """
         self._session = requests.session()
+
+        # expand connection pool for concurrent downloads - the default
+        # pool_maxsize of 10 causes connections to be discarded under load
+        _a = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
+        self._session.mount("https://", _a)
+        self._session.mount("http://", _a)
         self._headers = {}
         self.oauth_token = ""
         self.logging = logging.getLogger()
@@ -94,6 +100,13 @@ class Api:
                 if _r.status_code == 404:
                     raise TwitchAPIErrorNotFound(_r)
                 if _r.status_code != 200:
+                    # server errors are transient - retry them
+                    if _r.status_code >= 500 and _ < 5:
+                        self.logging.error(
+                            "HTTP status %s received, retrying.", _r.status_code
+                        )
+                        sleep(_ * 10)
+                        continue
                     raise TwitchAPIError(_r)
 
                 return _r
@@ -124,9 +137,9 @@ class Api:
         :type h: dict
         :return: entire requests response
         """
-        if not (d or j):
+        if (d is None) == (j is None):
             raise ValueError(
-                "Either data (d) or json (j) must be included with request."
+                "Exactly one of data (d) or json (j) must be included with request."
             )
 
         # request retry loop
@@ -142,6 +155,13 @@ class Api:
                     )
 
                 if _r.status_code != 200:
+                    # server errors are transient - retry them
+                    if _r.status_code >= 500 and _ < 5:
+                        self.logging.error(
+                            "HTTP status %s received, retrying.", _r.status_code
+                        )
+                        sleep(_ * 10)
+                        continue
                     raise TwitchAPIError(_r)
 
                 return _r
@@ -196,7 +216,12 @@ class Api:
         for _ in range(6):
             _r = self.post_request("https://gql.twitch.tv/gql", j=_q, h=_h)
 
-            if "errors" in _r.json()[0].keys():
+            try:
+                _body = _r.json()
+            except ValueError:
+                raise TwitchAPIError(_r)
+
+            if "errors" in _body[0].keys():
                 if _ == 5:
                     self.logging.error(
                         "Maximum attempts reached while querying GQL API. Error: %s",
