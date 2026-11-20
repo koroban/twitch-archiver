@@ -598,6 +598,9 @@ class Progress:
         :param cur: current progress out of total
         :param total: highest value of progress bar
         """
+        if total <= 0:
+            return
+
         last_frame = cur == total
         percent = floor(100 * (cur / total))
         progress = floor((0.25 * percent)) * "#" + ceil(25 - (0.25 * percent)) * " "

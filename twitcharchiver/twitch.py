@@ -61,7 +61,7 @@ class Category:
         """
         if isinstance(other, self.__class__):
             return bool(self.id == other.id)
-        raise TypeError
+        return NotImplemented
 
     def to_dict(self):
         """
@@ -298,17 +298,17 @@ class MpegSegment(Segment):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.id == other.id
-        raise TypeError
+        return NotImplemented
 
     def __ne__(self, other):
         if isinstance(other, self.__class__):
             return self.id != other.id
-        raise TypeError
+        return NotImplemented
 
     def __lt__(self, other):
         if isinstance(other, self.__class__):
             return self.id < other.id
-        raise TypeError
+        return NotImplemented
 
     @staticmethod
     def convert_m3u8_segment(segment: m3u8.Segment, base_url: str):

@@ -52,8 +52,9 @@ class Configuration:
         config.read(conf_file)
 
         # load individual settings from file
-        for setting in config["settings"]:
-            self.set(setting, config["settings"][setting])
+        if "settings" in config:
+            for setting in config["settings"]:
+                self.set(setting, config["settings"][setting])
 
     def create_config_file(self, conf_file):
         """
@@ -69,7 +70,7 @@ class Configuration:
         self._log.debug("Current config: %s", self.get())
 
         for setting in self.__conf:
-            config.set("settings", setting, self.get(setting))
+            config.set("settings", setting, str(self.get(setting) or ""))
 
         self._log.debug("Writing config to %s", conf_file)
 
@@ -122,7 +123,7 @@ class Configuration:
         """
         configuration = cls.__conf.copy()
         for key in ["pushbullet_key", "oauth_token"]:
-            if configuration[key]:
+            if configuration.get(key):
                 configuration.update({key: 24 * "*" + configuration[key][24:]})
 
         if name is None:

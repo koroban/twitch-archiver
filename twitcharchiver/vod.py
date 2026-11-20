@@ -63,7 +63,7 @@ class Vod:
         """
         if isinstance(other, self.__class__):
             return self.v_id == other.v_id
-        raise TypeError
+        return NotImplemented
 
     def __repr__(self):
         """
@@ -274,7 +274,7 @@ class Vod:
 
     @chapters.setter
     def chapters(self, value):
-        self.chapters = value
+        self._chapters = value
 
     def _get_chapters(self):
         """
@@ -711,7 +711,7 @@ class ArchivedVod(Vod):
                 and self.chat_archived == other.chat_archived
                 and self.video_archived == other.video_archived
             )
-        raise TypeError
+        return NotImplemented
 
     def __repr__(self):
         return str(self.to_dict())

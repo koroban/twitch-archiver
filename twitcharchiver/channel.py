@@ -51,7 +51,7 @@ class Channel:
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return bool(self.id == other.id)
-        raise TypeError
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.id)
@@ -398,20 +398,14 @@ class Channel:
             )
 
             # retrieve list of videos from response
-            _videos = [
-                Vod(vod_info=v["node"])
-                for v in _r.json()[0]["data"]["user"]["videos"]["edges"]
-            ]
-            _channel_videos.extend(_videos)
+            _videos_data = _r.json()[0]["data"]["user"]["videos"]
+            _channel_videos.extend(
+                Vod(vod_info=v["node"]) for v in _videos_data["edges"]
+            )
 
-            if (
-                _r.json()[0]["data"]["user"]["videos"]["pageInfo"]["hasNextPage"]
-                is not False
-            ):
+            if _videos_data["pageInfo"]["hasNextPage"] and _videos_data["edges"]:
                 # set cursor
-                _query_vars["cursor"] = _r.json()[0]["data"]["user"]["videos"]["edges"][
-                    -1
-                ]["cursor"]
+                _query_vars["cursor"] = _videos_data["edges"][-1]["cursor"]
 
             else:
                 break

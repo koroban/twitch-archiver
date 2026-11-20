@@ -167,14 +167,14 @@ class UnhandledDownloadError(TwitchArchiverError):
             message = (
                 f"An unhandled exception occurred while downloading stream {vod.s_id} by {vod.channel.name}. "
                 f"Check stream downloaded correctly and remove lock file "
-                f"({Path(get_temp_dir(), f'.lock.{vod.s_id}-stream-only')})."
+                f"({Path(get_temp_dir(), f'{vod.s_id}.lock-stream')})."
             )
 
         else:
             message = (
                 f"An unhandled exception occurred while downloading VOD {vod.v_id} by {vod.channel.name}. "
                 f"Check stream downloaded correctly and remove lock file "
-                f"({Path(get_temp_dir(), f'.lock.{vod.s_id}')})."
+                f"({Path(get_temp_dir(), f'{vod.v_id}.lock')})."
             )
 
         super().__init__(message)
@@ -235,13 +235,13 @@ class VodUnlockingError(TwitchArchiverError):
     def __init__(self, vod):
         if vod.v_id:
             message = (
-                f"Failed to remove lock file for stream {vod.v_id} by {vod.channel.name}. Check stream "
-                f"downloaded correctly and remove '.lock.{vod.v_id}' file from config directory."
+                f"Failed to remove lock file for VOD {vod.v_id} by {vod.channel.name}. Check VOD "
+                f"downloaded correctly and remove '{vod.v_id}.lock' file from the temp directory."
             )
         else:
             message = (
-                f"Failed to remove lock file for stream {vod.v_id} by {vod.channel.name}. Check stream "
-                f"downloaded correctly and remove '.lock.{vod.s_id}-stream' file from config directory."
+                f"Failed to remove lock file for stream {vod.s_id} by {vod.channel.name}. Check stream "
+                f"downloaded correctly and remove '{vod.s_id}.lock-stream' file from the temp directory."
             )
 
         super().__init__(message)
@@ -250,8 +250,8 @@ class VodUnlockingError(TwitchArchiverError):
 class VodLockedError(TwitchArchiverError):
     def __init__(self, vod):
         if vod.v_id:
-            message = f"Lock file (.lock.{vod.v_id}) already present for VOD {vod.v_id} by {vod.channel.name}."
+            message = f"Lock file ({vod.v_id}.lock) already present for VOD {vod.v_id} by {vod.channel.name}."
         else:
-            message = f"Lock file (.lock.{vod.s_id}-stream) already present for stream {vod.v_id} by {vod.channel.name}."
+            message = f"Lock file ({vod.s_id}.lock-stream) already present for stream {vod.s_id} by {vod.channel.name}."
 
         super().__init__(message)

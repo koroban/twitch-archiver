@@ -182,13 +182,16 @@ class Chat(Downloader):
         )
         self._chat_message_ids.update([m["id"] for m in _initial_segment])
 
+        _last_cursor = ""
         while True:
-            if not _cursor:
+            # break when no further pages exist or the cursor stops advancing
+            if not _cursor or _cursor == _last_cursor:
                 self._log.debug(
                     f"{len(self._chat_log) - start_len} messages retrieved from Twitch."
                 )
                 break
 
+            _last_cursor = _cursor
             self._log.debug("Fetching chat segments at cursor: %s.", _cursor)
             # grab next chat segment along with cursor for next segment
             _segment, _cursor = self._get_chat_segment(cursor=_cursor)
@@ -199,7 +202,7 @@ class Chat(Downloader):
             # vod duration in seconds is used as the total for progress bar
             # comment offset is used to track what's been done
             # could be done properly if there was a way to get the total number of comments
-            if not self._quiet:
+            if _segment and not self._quiet:
                 _progress.print_progress(
                     int(_segment[-1]["contentOffsetSeconds"]), self.vod.duration
                 )
@@ -243,7 +246,13 @@ class Chat(Downloader):
         }
 
         _r = self._api.post_request("https://gql.twitch.tv/gql", j=_p).json()
-        _comments = _r[0]["data"]["video"]["comments"]
+        _video = _r[0]["data"]["video"]
+
+        # vod was deleted or is inaccessible
+        if not _video:
+            return [], None
+
+        _comments = _video["comments"]
 
         # check if next page exists
         if _comments:

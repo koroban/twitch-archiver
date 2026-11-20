@@ -1,4 +1,5 @@
 import os
+import queue
 from multiprocessing import Queue
 from pathlib import Path
 from time import sleep
@@ -97,8 +98,16 @@ class RealTime(Downloader):
             for _w in workers:
                 _w.start()
 
-            # get returned video downloader
-            self.video: Video = _q.get()
+            # get returned video downloader - don't block forever if the
+            # video worker dies before putting its result into the queue
+            while _q.empty():
+                if not workers[1].is_alive():
+                    break
+                try:
+                    self.video = _q.get(timeout=1)
+                    break
+                except queue.Empty:
+                    continue
 
             # wait until all workers are done
             for _w in workers:
@@ -111,7 +120,7 @@ class RealTime(Downloader):
                 if worker.is_alive():
                     worker.terminate()
                     self._log.error(
-                        f"Worker %s failed to exit and was terminated.", worker
+                        "Worker %s failed to exit and was terminated.", worker
                     )
 
             self._handle_errors(workers)
@@ -128,18 +137,18 @@ class RealTime(Downloader):
 
         # discover errors based on exit codes of archivers
         # [0] is stream worker
-        if workers[0].exitcode == 1:
+        if workers[0].exitcode != 0:
             self._log.error("Real-time stream archiver exited with error.")
             errors.append(Stream)
 
         # [1] is video worker
-        if workers[1].exitcode == 1:
+        if workers[1].exitcode != 0:
             self._log.error("Real-time video archiver exited with error.")
             errors.append(Video)
 
         # [2] is chat worker
         if len(workers) > 2:
-            if workers[2].exitcode == 1:
+            if workers[2].exitcode != 0:
                 self._log.error("Real-time chat archiver exited with error.")
                 errors.append(Chat)
 
